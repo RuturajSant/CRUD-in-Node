@@ -1,6 +1,19 @@
 const User = require("../models/userModel");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const { loginValidation, registerValidation } = require("../middleware/validation");
 
 exports.signUp = async (req, res, next) => {
+    const { error, value } = registerValidation(req.body); //validate form
+    if (error) {
+        return res.status(400).send({ error: error.details[0].message })
+    }
+    const foundUser = await User.findOne({ email: req.body.email }); //check if email exists
+    if (foundUser) {
+        return res.status(400).send({ error: "Email already exists" });
+    }
+
     try {
         const newUser = await createUserObj(req);
         const savedUser = await User.create(newUser);
@@ -11,11 +24,25 @@ exports.signUp = async (req, res, next) => {
 }
 
 exports.logIn = async (req, res) => {
+    const { error } = loginValidation(req.body); //validate login form
+    if (error) {
+        return res.status(400).send({ error: error.details[0].message })
+    }
+
     const foundUser = await User.findOne({ email: req.body.email });
     if (!foundUser) {
         return res.status(400).send({ error: "User not found" })
-    } else {
-        return res.status(200).send({ message: "User found", user: foundUser })
+    }
+    try {
+        const isMatch = await bcrypt.compare(req.body.password, foundUser.password);
+        if (!isMatch) {
+            return res.status(400).send({ error: "Invalid credentials" })
+        }
+        //create and assign token
+        const token = jwt.sign({ _id: foundUser._id }, process.env.JWT_KEY);
+        return res.status(200).header("auth-token", token).send({ 'auth_token': token, 'userid': foundUser._id });
+    } catch (error) {
+        return res.status(400).send({ error: "Unable to login", error: error })
     }
 }
 
@@ -63,7 +90,7 @@ const createUserObj = async (req) => {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         email: req.body.email,
-        password: req.body.password,
+        password: bcrypt.hashSync(req.body.password, 10),
         phone: req.body.phone
     };
 }
