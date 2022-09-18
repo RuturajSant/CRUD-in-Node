@@ -11,16 +11,47 @@ exports.signUp = async (req, res, next) => {
 }
 
 exports.logIn = async (req, res) => {
-    return res.status(200).send({ message: "hitting the login route" })
+    const foundUser = await User.findOne({ email: req.body.email });
+    if (!foundUser) {
+        return res.status(400).send({ error: "User not found" })
+    } else {
+        return res.status(200).send({ message: "User found", user: foundUser })
+    }
 }
 
+exports.getAllUsers = async (req, res) => {
+    const allUsers = await User.find({});
+    if (!allUsers) {
+        return res.status(400).send({ error: "No users found" })
+    } else {
+        return res.status(200).send({ message: "Users found", users: allUsers })
+    }
+}
 exports.updateUser = async (req, res) => {
-    return res.status(200).send({ message: "hitting the update user route" })
+    try {
+        const updatedUser = await User.findByIdAndUpdate(req.params.userId, { $set: req.body }, { new: true });
+        if (!updatedUser) {
+            return res.status(400).send({ message: "Could to update user" })
+        } else {
+            return res.status(200).send({ message: "User updated", user: updatedUser })
+        }
+
+    } catch (error) {
+        return res.status(400).send({ error: "Unable to update user", error: error })
+    }
 }
 
 exports.deleteUser = async (req, res) => {
-    console.log("reached here");
-    return res.status(200).send({ message: "hitting the delete user route" })
+    try {
+        const deletedUser = await User.findByIdAndDelete(req.params.userId);
+        if (!deletedUser) {
+            return res.status(400).send({ error: "User not found" })
+        } else {
+            return res.status(200).send({ message: "User deleted successfully", user: deletedUser })
+        }
+    } catch (error) {
+        return res.status(400).send({ error: "Unable to delete user", error: error })
+    }
 }
 
 exports.data = async (req, res) => {
